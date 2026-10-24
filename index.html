@@ -124,6 +124,16 @@ const names=['الإذاعة الصباحية','الحصة الأولى','الح
 function audioCtx(){try{return audio||(audio=new(window.AudioContext||window.webkitAudioContext)())}catch(e){return null}}
 function tone(freq,dur=.13,delay=0,type='sine',vol=.09){if(!soundOn)return;let a=audioCtx();if(!a)return;try{a.resume();let o=a.createOscillator(),g=a.createGain(),at=a.currentTime+delay;o.type=type;o.frequency.setValueAtTime(freq,at);g.gain.setValueAtTime(.001,at);g.gain.exponentialRampToValueAtTime(vol,at+.018);g.gain.exponentialRampToValueAtTime(.001,at+dur);o.connect(g);g.connect(a.destination);o.start(at);o.stop(at+dur+.02)}catch(e){}}
 function success(){[523,659,784].forEach((f,i)=>tone(f,.19,i*.09))}function error(){tone(250,.18,0,'triangle');tone(205,.22,.14,'triangle')}function fanfare(){[523,659,784,1047,784,1047,1318].forEach((f,i)=>tone(f,.33,i*.19,'triangle',.07))}
+// لحن مستقل لإكمال محطة واحدة، مختلف عن نجاح الإجابة وعن الاحتفال النهائي.
+function stageCompleteSound(){
+ if(!soundOn)return;
+ let a=audioCtx();if(!a)return;
+ const melody=[[392,0,.22],[523,.20,.23],[659,.43,.24],[784,.67,.43]];
+ melody.forEach(([f,delay,duration])=>{
+   tone(f,duration,delay,'triangle',.22);
+   tone(f/2,duration,delay,'sine',.10);
+ });
+}
 function finalCelebration(){
  if(!soundOn)return;
  let a=audioCtx();if(!a)return;
@@ -143,7 +153,7 @@ function nextQuestion(){
  show('finish');
  let done=completedStages.size===7;
  document.getElementById('result').textContent=done?`🎊 تهانينا! أكملتِ جميع مراحل مغامرة أسرار الكلمات السبع، وأصبحتِ نجمة القراءة!`:`أنهيتِ ${names[stage]} وحصلتِ على ${score} من ${starts[stage+1]-starts[stage]} نجوم! تابعي المراحل المتبقية (${completedStages.size} من 7 مكتملة).`;
- if(done){finalCelebration()}else{success()}
+ if(done){finalCelebration()}else{stageCompleteSound()}
  confetti();
 }
 function confetti(){let c=document.getElementById('confetti');c.innerHTML='';for(let i=0;i<65;i++){let e=document.createElement('span');e.className='piece';e.textContent=['✨','🌟','🌸','💜','⭐'][i%5];e.style.left=Math.random()*100+'%';e.style.animationDuration=(2+Math.random()*3)+'s';e.style.animationDelay=Math.random()*.7+'s';e.style.fontSize=(14+Math.random()*19)+'px';c.appendChild(e)}setTimeout(()=>c.innerHTML='',6500)}renderStages();
