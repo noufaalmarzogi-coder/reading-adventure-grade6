@@ -89,6 +89,9 @@ html,body{overflow-x:hidden;overflow-y:auto}
 #landing .splash-image{display:block!important;width:100%!important;height:auto!important;max-height:none!important;object-fit:contain!important;border-radius:0!important}
 #landing .splash-hit{display:block!important;position:absolute!important;top:84.5%!important;left:17%!important;width:66%!important;height:11%!important;z-index:5!important}
 #landing .splash-side{display:none!important}
+/* Hide cover after Start even when responsive ID selectors use !important */
+#landing.hidden{display:none!important}
+
 @media(max-width:1100px){#landing .splash-frame{max-width:none!important}}
 </style></head><body><div class="shell"><section id="landing" class="splash" aria-label="الواجهة الافتتاحية لمغامرة أسرار الكلمات">
  <div class="splash-frame">
@@ -133,27 +136,36 @@ const questions=[
 const names=['الإذاعة الصباحية','الحصة الأولى','الحصة الثانية','الحصة الثالثة','الحصة الرابعة','الحصة الخامسة','الحصة السادسة'];const icons=['🌅','🌷','🦋','🔮','🌿','💎','👑'];const starts=[0,2,4,6,9,12,15,18];const completedStages=new Set();let stage=0,position=0,score=0,answered=false,soundOn=true,audio=null;
 function audioCtx(){try{return audio||(audio=new(window.AudioContext||window.webkitAudioContext)())}catch(e){return null}}
 function tone(freq,dur=.13,delay=0,type='sine',vol=.09){if(!soundOn)return;let a=audioCtx();if(!a)return;try{a.resume();let o=a.createOscillator(),g=a.createGain(),at=a.currentTime+delay;o.type=type;o.frequency.setValueAtTime(freq,at);g.gain.setValueAtTime(.001,at);g.gain.exponentialRampToValueAtTime(vol,at+.018);g.gain.exponentialRampToValueAtTime(.001,at+dur);o.connect(g);g.connect(a.destination);o.start(at);o.stop(at+dur+.02)}catch(e){}}
-function success(){[523,659,784].forEach((f,i)=>tone(f,.19,i*.09))}function error(){tone(250,.18,0,'triangle');tone(205,.22,.14,'triangle')}function fanfare(){[523,659,784,1047,784,1047,1318].forEach((f,i)=>tone(f,.33,i*.19,'triangle',.07))}
+function success(){[659,880].forEach((f,i)=>tone(f,.19,i*.12,'triangle',.15))}
+function error(){tone(330,.24,0,'sawtooth',.11);tone(220,.3,.21,'sawtooth',.12)}
+// A four-note graduation cue, distinctly longer and lower than a right-answer chime.
+function stageCompleteSound(){
+ if(!soundOn)return;
+ [392,523,659,784,1047].forEach((f,i)=>tone(f,.3,i*.23,'triangle',.24));
+ tone(523,.53,1.18,'sine',.2);
+}
+// A separate, longer multi-part finale played ONLY once seven distinct stages are done.
 function finalCelebration(){
  if(!soundOn)return;
- let a=audioCtx();if(!a)return;
- [523,659,784,1047,1319,1047,1568,1760,2093].forEach((f,i)=>{tone(f,i===8?.75:.27,i*.19,'triangle',.24);tone(f/2,.22,i*.19,'sine',.15)});
+ const tune=[523,659,784,1047,0,784,988,1175,1568,0,1047,1319,1568,2093];
+ tune.forEach((f,i)=>{if(f){tone(f,i===tune.length-1?.95:.33,i*.26,'triangle',.23);tone(f/2,.26,i*.26,'sine',.11)}});
 }
 function toggleSound(){soundOn=!soundOn;document.getElementById('sound').textContent=soundOn?'🔊 الصوت: تشغيل':'🔇 الصوت: إيقاف';if(soundOn)tone(650)}
 function show(id){['landing','home','play','finish'].forEach(k=>document.getElementById(k).classList.toggle('hidden',k!==id));window.scrollTo({top:0,behavior:'instant'})}
-function enterAdventure(){audioCtx();show('home');renderStages()}
+function enterAdventure(){const a=audioCtx();if(a)a.resume().catch(()=>{});show('home');renderStages()}
 function goHome(){renderStages();show('home')}
 function renderStages(){document.getElementById('stages').innerHTML=names.map((n,i)=>`<button class="stage" onclick="startStage(${i})"><span class="symbol">${icons[i]}</span>${n}<small>${starts[i+1]-starts[i]} ${starts[i+1]-starts[i]===2?'سؤالان':'أسئلة'} ${completedStages.has(i)?'✓ مكتملة':''}</small></button>`).join('')}
 function startStage(i){stage=i;position=starts[i];score=0;show('play');renderQuestion();tone(740)}
 function renderQuestion(){answered=false;let q=questions[position],local=position-starts[stage]+1,total=starts[stage+1]-starts[stage];document.getElementById('stageTitle').textContent=`📚 ${names[stage]}`;document.getElementById('count').textContent=`السؤال ${local} من ${total}`;document.getElementById('bar').style.width=`${((local-1)/total)*100}%`;document.getElementById('reading').innerHTML='';let reading=document.getElementById('reading');let heading=document.createElement('h3');heading.textContent=q.t===story?'📖 الدفاع عن الوطن':'📖 اقرئي النص أو السياق';reading.appendChild(heading);let details=document.createElement('details');details.className='reading-details';details.open=(position===0 || (q.t!==story && q.t.length<250));let summary=document.createElement('summary');summary.textContent='📖 '+(q.t===story?'قراءة النص (الدفاع عن الوطن)':'عرض النص أو السياق');details.appendChild(summary);let paragraph=document.createElement('p');paragraph.textContent=q.t;details.appendChild(paragraph);reading.appendChild(details);reading.scrollTop=0;document.getElementById('question').textContent=q.q;document.getElementById('answers').innerHTML=q.o.map((opt,i)=>`<button class="answer" onclick="choose(${i})"><strong>${['أ','ب','ج','د'][i]}) </strong>${opt}</button>`).join('');document.getElementById('feedback').classList.add('hidden');document.getElementById('next').classList.add('hidden')}
 function choose(i){if(answered)return;answered=true;let q=questions[position],correct=i===q.a;if(correct){score++;success()}else error();let buttons=document.querySelectorAll('.answer');buttons.forEach((b,j)=>{b.disabled=true;if(j===q.a)b.classList.add('good');if(j===i&&!correct)b.classList.add('bad')});let f=document.getElementById('feedback');f.classList.remove('hidden');f.textContent=correct?'🌟 إجابة صحيحة! أحسنتِ!':`💡 الإجابة الصحيحة: ${['أ','ب','ج','د'][q.a]}) ${q.o[q.a]}`;let last=position===starts[stage+1]-1;document.getElementById('next').textContent=last?'إتمام المرحلة ✨':'السؤال التالي ←';document.getElementById('next').classList.remove('hidden');document.getElementById('bar').style.width=`${(position-starts[stage]+1)/(starts[stage+1]-starts[stage])*100}%`}
 function nextQuestion(){
+ audioCtx()?.resume().catch(()=>{});
  if(position<starts[stage+1]-1){position++;renderQuestion();return}
  completedStages.add(stage);
  show('finish');
  let done=completedStages.size===7;
  document.getElementById('result').textContent=done?`🎊 تهانينا! أكملتِ جميع مراحل مغامرة أسرار الكلمات السبع، وأصبحتِ نجمة القراءة!`:`أنهيتِ ${names[stage]} وحصلتِ على ${score} من ${starts[stage+1]-starts[stage]} نجوم! تابعي المراحل المتبقية (${completedStages.size} من 7 مكتملة).`;
- if(done){finalCelebration()}else{success()}
+ if(done){finalCelebration()}else{stageCompleteSound()}
  confetti();
 }
 function confetti(){let c=document.getElementById('confetti');c.innerHTML='';for(let i=0;i<65;i++){let e=document.createElement('span');e.className='piece';e.textContent=['✨','🌟','🌸','💜','⭐'][i%5];e.style.left=Math.random()*100+'%';e.style.animationDuration=(2+Math.random()*3)+'s';e.style.animationDelay=Math.random()*.7+'s';e.style.fontSize=(14+Math.random()*19)+'px';c.appendChild(e)}setTimeout(()=>c.innerHTML='',6500)}renderStages();
